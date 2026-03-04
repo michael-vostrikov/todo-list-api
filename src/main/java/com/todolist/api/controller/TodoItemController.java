@@ -5,6 +5,7 @@ import com.todolist.api.repository.TodoItemRepository;
 import com.todolist.api.service.TodoItemService;
 import com.todolist.api.request.AddTodoItemRequest;
 import com.todolist.api.request.ListTodoItemRequest;
+import com.todolist.api.request.ChangeTodoItemDescriptionRequest;
 import com.todolist.api.response.ValidationErrorResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -65,6 +66,24 @@ public class TodoItemController {
         @RequestParam(name = "id") int id
     ) {
         return ResponseEntity.ok(todoItemService.view(id));
+    }
+
+    @ApiResponses({
+        @ApiResponse(responseCode = "200",
+            content = @Content(schema = @Schema(implementation = TodoItem.class))),
+        @ApiResponse(responseCode = "400",
+            content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class))),
+        @ApiResponse(responseCode = "404",
+            content = @Content(schema = @Schema(implementation = String.class))),
+        @ApiResponse(responseCode = "422",
+            content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
+    })
+    @PutMapping("/todo-item/change-description")
+    public ResponseEntity<TodoItem> changeDescription(
+        @RequestParam(name = "id") int id,
+        @Valid @RequestBody ChangeTodoItemDescriptionRequest request
+    ) {
+        return ResponseEntity.ok(todoItemService.changeDescription(id, request));
     }
 
 }
