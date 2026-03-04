@@ -110,4 +110,18 @@ public class TodoItemService {
         return entity;
     }
 
+    @Transactional
+    public void markAsPastDue(int id) {
+        var entity = findEntity(id, true);
+
+        // it may happen that status changed right after we got list of ids to process
+        // we don't need exception here, just skip not matching
+        if (entity.getStatus() != TodoItemStatus.NOT_DONE) {
+            return;
+        }
+
+        entity.setStatus(TodoItemStatus.PAST_DUE);
+
+        todoItemRepository.save(entity);
+    }
 }
