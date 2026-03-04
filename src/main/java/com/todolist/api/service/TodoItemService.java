@@ -97,4 +97,17 @@ public class TodoItemService {
         return entity;
     }
 
+    @Transactional
+    public TodoItem markAsNotDone(int id) {
+        var entity = findEntity(id, true);
+        ensureUpdateAllowed(entity);
+
+        entity.setStatus(TodoItemStatus.NOT_DONE);
+        entity.setDoneAt(null);
+
+        todoItemRepository.save(entity);
+
+        return entity;
+    }
+
 }
