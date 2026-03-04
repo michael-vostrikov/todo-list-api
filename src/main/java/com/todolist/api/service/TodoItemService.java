@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 
 @Service
@@ -45,6 +46,21 @@ public class TodoItemService {
         var page = todoItemRepository.findAll(spec, pageable);
 
         return page;
+    }
+
+    public TodoItem view(int id) {
+        var entity = findEntity(id, false);
+
+        return entity;
+    }
+
+    private TodoItem findEntity(int id, boolean forUpdate) {
+        return
+            (forUpdate
+                ? todoItemRepository.findByIdForUpdate(id)
+                : todoItemRepository.findById(id)
+            )
+            .orElseThrow(() -> new EntityNotFoundException("TodoItem not found: " + id));
     }
 
 }

@@ -54,4 +54,17 @@ public class TodoItemController {
         return ResponseEntity.ok(todoItemService.list(filter, pageable));
     }
 
+    @ApiResponses({
+        @ApiResponse(responseCode = "200",
+            content = @Content(schema = @Schema(implementation = TodoItem.class))),
+        @ApiResponse(responseCode = "404",
+            content = @Content(schema = @Schema(implementation = String.class))),
+    })
+    @GetMapping("/todo-item/view")
+    public ResponseEntity<TodoItem> view(
+        @RequestParam(name = "id") int id
+    ) {
+        return ResponseEntity.ok(todoItemService.view(id));
+    }
+
 }
