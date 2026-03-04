@@ -4,11 +4,17 @@ import com.todolist.api.entity.TodoItem;
 import com.todolist.api.repository.TodoItemRepository;
 import com.todolist.api.service.TodoItemService;
 import com.todolist.api.request.AddTodoItemRequest;
+import com.todolist.api.request.ListTodoItemRequest;
 import com.todolist.api.response.ValidationErrorResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -34,6 +40,18 @@ public class TodoItemController {
         @Valid @RequestBody AddTodoItemRequest request
     ) {
         return ResponseEntity.ok(todoItemService.add(request));
+    }
+
+    @GetMapping("/todo-item/list")
+    public ResponseEntity<Page<TodoItem>> list(
+        @ParameterObject
+        @ModelAttribute ListTodoItemRequest filter,
+
+        @ParameterObject
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+        Pageable pageable
+    ) {
+        return ResponseEntity.ok(todoItemService.list(filter, pageable));
     }
 
 }
