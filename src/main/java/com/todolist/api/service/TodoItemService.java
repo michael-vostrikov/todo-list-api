@@ -84,4 +84,17 @@ public class TodoItemService {
         }
     }
 
+    @Transactional
+    public TodoItem markAsDone(int id) {
+        var entity = findEntity(id, true);
+        ensureUpdateAllowed(entity);
+
+        entity.setStatus(TodoItemStatus.DONE);
+        entity.setDoneAt(Instant.now());
+
+        todoItemRepository.save(entity);
+
+        return entity;
+    }
+
 }

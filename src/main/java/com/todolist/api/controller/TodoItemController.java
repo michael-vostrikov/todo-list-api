@@ -86,4 +86,21 @@ public class TodoItemController {
         return ResponseEntity.ok(todoItemService.changeDescription(id, request));
     }
 
+    @ApiResponses({
+        @ApiResponse(responseCode = "200",
+            content = @Content(schema = @Schema(implementation = TodoItem.class))),
+        @ApiResponse(responseCode = "400",
+            content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class))),
+        @ApiResponse(responseCode = "404",
+            content = @Content(schema = @Schema(implementation = String.class))),
+        @ApiResponse(responseCode = "422",
+            content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
+    })
+    @PutMapping("/todo-item/mark-as-done")
+    public ResponseEntity<TodoItem> markAsDone(
+        @RequestParam(name = "id") int id
+    ) {
+        return ResponseEntity.ok(todoItemService.markAsDone(id));
+    }
+
 }
