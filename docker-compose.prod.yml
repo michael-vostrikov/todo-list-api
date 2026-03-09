@@ -1,0 +1,7 @@
+services:
+
+  todo-list-api:
+    container_name: 'todo-list-api'
+    build: .
+    ports:
+      - '8080:8080'

@@ -1,118 +1,103 @@
 package com.todolist.api.service;
 
 import com.todolist.api.entity.TodoItem;
+import com.todolist.api.entity.TodoItem_;
 import com.todolist.api.enums.TodoItemStatus;
+import com.todolist.api.exception.InvalidSortPropertyException;
+import com.todolist.api.mapper.TodoItemMapper;
 import com.todolist.api.repository.TodoItemRepository;
 import com.todolist.api.repository.TodoItemSpecification;
 import com.todolist.api.request.AddTodoItemRequest;
-import com.todolist.api.request.ListTodoItemRequest;
 import com.todolist.api.request.ChangeTodoItemDescriptionRequest;
-import com.todolist.api.exception.EntityValidationException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import java.util.Map;
-import org.springframework.transaction.annotation.Transactional;
+import com.todolist.api.request.ListTodoItemRequest;
+import com.todolist.api.response.TodoItemResponse;
+import jakarta.persistence.EntityNotFoundException;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import jakarta.persistence.EntityNotFoundException;
-import java.time.Instant;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class TodoItemService {
 
-    @Autowired
-    private TodoItemRepository todoItemRepository;
+    private static final Set<String> SORTABLE_PROPERTIES = Set.of(
+        TodoItem_.ID,
+        TodoItem_.DESCRIPTION,
+        TodoItem_.STATUS,
+        TodoItem_.CREATED_AT,
+        TodoItem_.DUE_DATE,
+        TodoItem_.DONE_AT
+    );
+
+    private final TodoItemRepository todoItemRepository;
+
+    private final TodoItemMapper todoItemMapper;
+
+    private final Clock clock;
 
     @Transactional
-    public TodoItem add(AddTodoItemRequest request) {
-        var entity = new TodoItem();
-
-        entity.setStatus(TodoItemStatus.NOT_DONE);
-
-        entity.setDescription(request.description);
-        entity.setDueDate(request.dueDate);
-        entity.setDoneAt(null);
+    public TodoItemResponse add(AddTodoItemRequest request) {
+        var entity = TodoItem.create(request.description(), request.dueDate(), Instant.now(clock));
 
         todoItemRepository.save(entity);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
-    public Page<TodoItem> list(ListTodoItemRequest filter, Pageable pageable) {
+    public Page<TodoItemResponse> list(ListTodoItemRequest filter, Pageable pageable) {
+        ensureSortSupported(pageable.getSort());
+
         Specification<TodoItem> spec = Specification.unrestricted();
 
-        if (filter.status != null) {
-            spec = spec.and(TodoItemSpecification.hasStatus(filter.status));
+        if (filter.status() != null) {
+            spec = spec.and(TodoItemSpecification.hasStatus(filter.status()));
         }
 
-        var page = todoItemRepository.findAll(spec, pageable);
-
-        return page;
+        return todoItemRepository.findAll(spec, pageable).map(todoItemMapper::toDto);
     }
 
-    public TodoItem view(int id) {
-        var entity = findEntity(id, false);
-
-        return entity;
-    }
-
-    private TodoItem findEntity(int id, boolean forUpdate) {
-        return
-            (forUpdate
-                ? todoItemRepository.findByIdForUpdate(id)
-                : todoItemRepository.findById(id)
-            )
-            .orElseThrow(() -> new EntityNotFoundException("TodoItem not found: " + id));
+    public TodoItemResponse view(int id) {
+        return todoItemMapper.toDto(findEntity(id));
     }
 
     @Transactional
-    public TodoItem changeDescription(int id, ChangeTodoItemDescriptionRequest request) {
-        var entity = findEntity(id, true);
-        ensureUpdateAllowed(entity);
+    public TodoItemResponse changeDescription(int id, ChangeTodoItemDescriptionRequest request) {
+        var entity = findEntityForUpdate(id);
 
-        entity.setDescription(request.getDescription());
+        entity.changeDescription(request.description());
 
-        todoItemRepository.save(entity);
-
-        return entity;
-    }
-
-    private void ensureUpdateAllowed(TodoItem entity) {
-        if (entity.getStatus() == TodoItemStatus.PAST_DUE) {
-            throw new EntityValidationException(Map.of("status", "Cannot change entity which is in PAST_DUE status"));
-        }
+        return todoItemMapper.toDto(entity);
     }
 
     @Transactional
-    public TodoItem markAsDone(int id) {
-        var entity = findEntity(id, true);
-        ensureUpdateAllowed(entity);
+    public TodoItemResponse markAsDone(int id) {
+        var entity = findEntityForUpdate(id);
 
-        entity.setStatus(TodoItemStatus.DONE);
-        entity.setDoneAt(Instant.now());
+        entity.markAsDone(Instant.now(clock));
 
-        todoItemRepository.save(entity);
-
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     @Transactional
-    public TodoItem markAsNotDone(int id) {
-        var entity = findEntity(id, true);
-        ensureUpdateAllowed(entity);
+    public TodoItemResponse markAsNotDone(int id) {
+        var entity = findEntityForUpdate(id);
 
-        entity.setStatus(TodoItemStatus.NOT_DONE);
-        entity.setDoneAt(null);
+        entity.markAsNotDone();
 
-        todoItemRepository.save(entity);
-
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     @Transactional
     public void markAsPastDue(int id) {
-        var entity = findEntity(id, true);
+        var entity = findEntityForUpdate(id);
 
         // it may happen that status changed right after we got list of ids to process
         // we don't need exception here, just skip not matching
@@ -120,8 +105,28 @@ public class TodoItemService {
             return;
         }
 
-        entity.setStatus(TodoItemStatus.PAST_DUE);
+        entity.markAsPastDue();
+    }
 
-        todoItemRepository.save(entity);
+    private TodoItem findEntity(int id) {
+        return todoItemRepository.findById(id)
+            .orElseThrow(() -> notFound(id));
+    }
+
+    private TodoItem findEntityForUpdate(int id) {
+        return todoItemRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> notFound(id));
+    }
+
+    private static EntityNotFoundException notFound(int id) {
+        return new EntityNotFoundException("TodoItem not found: " + id);
+    }
+
+    private static void ensureSortSupported(Sort sort) {
+        for (Sort.Order order : sort) {
+            if (!SORTABLE_PROPERTIES.contains(order.getProperty())) {
+                throw new InvalidSortPropertyException(order.getProperty());
+            }
+        }
     }
 }

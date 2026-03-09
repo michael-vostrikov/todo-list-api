@@ -1,51 +1,77 @@
 package com.todolist.api.service;
 
-import com.todolist.api.entity.TodoItem;
 import com.todolist.api.enums.TodoItemStatus;
 import com.todolist.api.repository.TodoItemRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import java.util.List;
+import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class TodoItemBackgroundService {
 
-    @Autowired
-    private TodoItemRepository todoItemRepository;
+    private final TodoItemRepository todoItemRepository;
 
-    @Autowired
-    private TodoItemService todoItemService;
+    private final TodoItemService todoItemService;
 
-    @Scheduled(fixedDelay = 4000)
+    private final Clock clock;
+
+    private final int batchSize;
+
+    public TodoItemBackgroundService(
+        TodoItemRepository todoItemRepository,
+        TodoItemService todoItemService,
+        Clock clock,
+        @Value("${todo.past-due.batch-size}") int batchSize
+    ) {
+        this.todoItemRepository = todoItemRepository;
+        this.todoItemService = todoItemService;
+        this.clock = clock;
+        this.batchSize = batchSize;
+    }
+
+    /**
+     * Safe to run on several instances at the same time:
+     * every item is changed under a row lock and its status is checked again after locking.
+     */
+    @Scheduled(fixedDelayString = "${todo.past-due.fixed-delay-ms}")
     public void processDueDate() {
-        var limit = 1000;
-        var currentDate = Instant.now();
+        var now = Instant.now(clock);
+        var processed = 0;
 
-        do {
+        while (true) {
             // we need to load entity with lock later, so we get only ids here
             // we cannot load them all with lock here, because processing can take a long time
 
             List<Integer> idsToProcess = todoItemRepository.findIdsByStatusAndDueDateBefore(
                 TodoItemStatus.NOT_DONE,
-                currentDate,
+                now,
                 // we always use page 0, because we filter by status here, and status changes
-                PageRequest.of(0, limit)
+                PageRequest.of(0, batchSize)
             );
 
-            if (idsToProcess.size() == 0) {
+            if (idsToProcess.isEmpty()) {
                 break;
             }
 
-            System.out.println("Found " + idsToProcess.size() + " records");
+            log.debug("Found {} TodoItems with passed due date", idsToProcess.size());
 
             for (Integer todoItemId : idsToProcess) {
-                System.out.println("Processing TodoItem: " + todoItemId);
+                log.debug("Marking TodoItem {} as PAST_DUE", todoItemId);
 
                 todoItemService.markAsPastDue(todoItemId);
             }
-        } while (true);
+
+            processed += idsToProcess.size();
+        }
+
+        if (processed > 0) {
+            log.info("Processed {} TodoItems with passed due date", processed);
+        }
     }
 }
