@@ -3,26 +3,30 @@ package com.todolist.api.service;
 import com.todolist.api.entity.TodoItem;
 import com.todolist.api.enums.TodoItemStatus;
 import com.todolist.api.repository.TodoItemRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.time.Instant;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
+import lombok.RequiredArgsConstructor;
+import java.time.Clock;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class TodoItemBackgroundService {
 
-    @Autowired
-    private TodoItemRepository todoItemRepository;
+    private final TodoItemRepository todoItemRepository;
 
-    @Autowired
-    private TodoItemService todoItemService;
+    private final TodoItemService todoItemService;
+
+    private final Clock clock;
 
     @Scheduled(fixedDelay = 4000)
     public void processDueDate() {
         var limit = 1000;
-        var currentDate = Instant.now();
+        var currentDate = Instant.now(clock);
 
         do {
             // we need to load entity with lock later, so we get only ids here
@@ -39,10 +43,10 @@ public class TodoItemBackgroundService {
                 break;
             }
 
-            System.out.println("Found " + idsToProcess.size() + " records");
+            log.info("Found " + idsToProcess.size() + " records");
 
             for (Integer todoItemId : idsToProcess) {
-                System.out.println("Processing TodoItem: " + todoItemId);
+                log.info("Processing TodoItem: " + todoItemId);
 
                 todoItemService.markAsPastDue(todoItemId);
             }

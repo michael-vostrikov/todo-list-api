@@ -1,7 +1,6 @@
 package com.todolist.api;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import java.time.Instant;
@@ -14,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import static org.assertj.core.api.Assertions.*;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(
@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 )
 @AutoConfigureRestTestClient
 class TodoItemControllerTest {
+
     @Autowired
     private RestTestClient restTestClient;
 
@@ -45,8 +46,8 @@ class TodoItemControllerTest {
         assertThat(entity).isNotNull();
         assertThat(entity.getId()).isNotNull();
 
-        // wait till @Scheduled
-        try { java.lang.Thread.sleep(6000); } catch (Exception e) {}
+        // this is full integration test without mocking, wait till @Scheduled
+        try { java.lang.Thread.sleep(9000); } catch (Exception e) {}
 
 	    var changeDescriptionRequest = new ChangeTodoItemDescriptionRequest("New item description");
 

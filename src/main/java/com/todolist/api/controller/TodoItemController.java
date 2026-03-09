@@ -6,8 +6,8 @@ import com.todolist.api.service.TodoItemService;
 import com.todolist.api.request.AddTodoItemRequest;
 import com.todolist.api.request.ListTodoItemRequest;
 import com.todolist.api.request.ChangeTodoItemDescriptionRequest;
+import com.todolist.api.response.TodoItemResponse;
 import com.todolist.api.response.ValidationErrorResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
@@ -20,15 +20,15 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class TodoItemController {
 
-    @Autowired
-    private TodoItemService todoItemService;
+    private final TodoItemService todoItemService;
 
-    @Autowired
-    private TodoItemRepository todoItemRepository;
+    private final TodoItemRepository todoItemRepository;
 
     @ApiResponses({
         @ApiResponse(responseCode = "200",
@@ -37,14 +37,14 @@ public class TodoItemController {
             content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
     @PostMapping("/todo-item/add")
-    public ResponseEntity<TodoItem> add(
+    public ResponseEntity<TodoItemResponse> add(
         @Valid @RequestBody AddTodoItemRequest request
     ) {
         return ResponseEntity.ok(todoItemService.add(request));
     }
 
     @GetMapping("/todo-item/list")
-    public ResponseEntity<Page<TodoItem>> list(
+    public ResponseEntity<Page<TodoItemResponse>> list(
         @ParameterObject
         @ModelAttribute ListTodoItemRequest filter,
 
@@ -62,7 +62,7 @@ public class TodoItemController {
             content = @Content(schema = @Schema(implementation = String.class))),
     })
     @GetMapping("/todo-item/view")
-    public ResponseEntity<TodoItem> view(
+    public ResponseEntity<TodoItemResponse> view(
         @RequestParam(name = "id") int id
     ) {
         return ResponseEntity.ok(todoItemService.view(id));
@@ -79,7 +79,7 @@ public class TodoItemController {
             content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
     @PutMapping("/todo-item/change-description")
-    public ResponseEntity<TodoItem> changeDescription(
+    public ResponseEntity<TodoItemResponse> changeDescription(
         @RequestParam(name = "id") int id,
         @Valid @RequestBody ChangeTodoItemDescriptionRequest request
     ) {
@@ -97,7 +97,7 @@ public class TodoItemController {
             content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
     @PutMapping("/todo-item/mark-as-done")
-    public ResponseEntity<TodoItem> markAsDone(
+    public ResponseEntity<TodoItemResponse> markAsDone(
         @RequestParam(name = "id") int id
     ) {
         return ResponseEntity.ok(todoItemService.markAsDone(id));
@@ -114,7 +114,7 @@ public class TodoItemController {
             content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
     @PutMapping("/todo-item/mark-as-not-done")
-    public ResponseEntity<TodoItem> markAsNotDone(
+    public ResponseEntity<TodoItemResponse> markAsNotDone(
         @RequestParam(name = "id") int id
     ) {
         return ResponseEntity.ok(todoItemService.markAsNotDone(id));

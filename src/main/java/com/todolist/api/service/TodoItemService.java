@@ -7,8 +7,8 @@ import com.todolist.api.repository.TodoItemSpecification;
 import com.todolist.api.request.AddTodoItemRequest;
 import com.todolist.api.request.ListTodoItemRequest;
 import com.todolist.api.request.ChangeTodoItemDescriptionRequest;
+import com.todolist.api.response.TodoItemResponse;
 import com.todolist.api.exception.EntityValidationException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +17,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
+import com.todolist.api.mapper.TodoItemMapper;
+import lombok.RequiredArgsConstructor;
+import java.time.Clock;
 
 @Service
+@RequiredArgsConstructor
 public class TodoItemService {
 
-    @Autowired
-    private TodoItemRepository todoItemRepository;
+    private final TodoItemRepository todoItemRepository;
+
+    private final TodoItemMapper todoItemMapper;
+
+    private final Clock clock;
 
     @Transactional
-    public TodoItem add(AddTodoItemRequest request) {
+    public TodoItemResponse add(AddTodoItemRequest request) {
         var entity = new TodoItem();
 
         entity.setStatus(TodoItemStatus.NOT_DONE);
@@ -36,10 +43,10 @@ public class TodoItemService {
 
         todoItemRepository.save(entity);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
-    public Page<TodoItem> list(ListTodoItemRequest filter, Pageable pageable) {
+    public Page<TodoItemResponse> list(ListTodoItemRequest filter, Pageable pageable) {
         Specification<TodoItem> spec = Specification.unrestricted();
 
         if (filter.status != null) {
@@ -48,13 +55,13 @@ public class TodoItemService {
 
         var page = todoItemRepository.findAll(spec, pageable);
 
-        return page;
+        return page.map(entity -> todoItemMapper.toDto(entity));
     }
 
-    public TodoItem view(int id) {
+    public TodoItemResponse view(int id) {
         var entity = findEntity(id, false);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     private TodoItem findEntity(int id, boolean forUpdate) {
@@ -67,7 +74,7 @@ public class TodoItemService {
     }
 
     @Transactional
-    public TodoItem changeDescription(int id, ChangeTodoItemDescriptionRequest request) {
+    public TodoItemResponse changeDescription(int id, ChangeTodoItemDescriptionRequest request) {
         var entity = findEntity(id, true);
         ensureUpdateAllowed(entity);
 
@@ -75,7 +82,7 @@ public class TodoItemService {
 
         todoItemRepository.save(entity);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     private void ensureUpdateAllowed(TodoItem entity) {
@@ -85,20 +92,20 @@ public class TodoItemService {
     }
 
     @Transactional
-    public TodoItem markAsDone(int id) {
+    public TodoItemResponse markAsDone(int id) {
         var entity = findEntity(id, true);
         ensureUpdateAllowed(entity);
 
         entity.setStatus(TodoItemStatus.DONE);
-        entity.setDoneAt(Instant.now());
+        entity.setDoneAt(Instant.now(clock));
 
         todoItemRepository.save(entity);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     @Transactional
-    public TodoItem markAsNotDone(int id) {
+    public TodoItemResponse markAsNotDone(int id) {
         var entity = findEntity(id, true);
         ensureUpdateAllowed(entity);
 
@@ -107,7 +114,7 @@ public class TodoItemService {
 
         todoItemRepository.save(entity);
 
-        return entity;
+        return todoItemMapper.toDto(entity);
     }
 
     @Transactional

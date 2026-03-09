@@ -14,20 +14,23 @@ import com.todolist.api.service.TodoItemService;
 import com.todolist.api.exception.EntityValidationException;
 import java.util.Optional;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneId;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.todolist.api.mapper.TodoItemMapper;
 
 class TodoItemServiceTest {
 
-    @Mock
-    private TodoItemRepository todoItemRepository;
+    private final TodoItemRepository todoItemRepository = mock(TodoItemRepository.class);;
 
-    @InjectMocks
-    private TodoItemService todoItemService;
+    private final TodoItemMapper todoItemMapper = mock(TodoItemMapper.class);
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    private final Clock fixedClock = Clock.fixed(
+        Instant.parse("2026-02-01T00:00:00Z"),
+        ZoneId.of("UTC")
+    );
+
+    private final TodoItemService todoItemService = new TodoItemService(todoItemRepository, todoItemMapper, fixedClock);
 
 	@Test
 	void testChangeDescriptionAllowed() {

@@ -7,5 +7,7 @@ services:
       - '8080:8080'
     volumes:
       - ./:/app
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
     working_dir: /app
     command: ./mvnw spring-boot:run
